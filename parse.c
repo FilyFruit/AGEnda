@@ -1,15 +1,16 @@
 /*
-* Microcontroladores II - IFTS14
-* Protocolo RS232 - Arduino v. Hola Mundo - pruebas
-* @author Bárbara Menares
-* @date 20160628
+  Serial Event example
+
+ When new serial data arrives, this sketch adds it to a String.
+ When a newline is received, the loop prints the string and
+ clears it.
+
+ A good test for this is to try it with a GPS receiver
+ that sends out NMEA 0183 sentences.
+
+ http://www.arduino.cc/en/Tutorial/SerialEvent
+
  */
-
-
-#include <stdio.h>
-#include <wire.h> //comunicador rs232 - arduino
-#include <SoftwareSerial.h>
-#include <funcionalidades.h>
 
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;  // whether the string is complete
@@ -61,25 +62,31 @@ void serialEvent() {
   }
 
 void agenda_parse () {
+  
+  String lista[10];
+    
   if (inputString == "lista")
-  {
-     Serial.println("no hay cosos");
-    //mostrar_lista();
+    {
+        obtener_lista( &lista );
+        if (no hay = 1)
+        {
+            Serial.println("no hay cosos")
+        }
   }
   
   if (inputString == "cumples")
   {
-    //mostrar_cumples();
+    mostrar_cumples();
   }
   
   if (inputString == "guardar")
   {
-    //guardar();
+    guardar();
   }
   
   if (inputString == "borrar")
   {
-	//borrar();
+    borrar();
   }
 }
 
