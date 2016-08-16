@@ -28,7 +28,7 @@ void setup() {
 
 void loop() {
 
-DateTime now = rtc.now();
+  DateTime now = rtc.now();
 
   Serial.print(now.year(), DEC);
   Serial.print('/');
@@ -42,7 +42,7 @@ DateTime now = rtc.now();
   Serial.print(':');
   Serial.print(now.second(), DEC);
   Serial.println();
-
+  /*
   Serial.print(" since midnight 1/1/1970 = ");
   Serial.print(now.unixtime());
   Serial.print("s = ");
@@ -65,16 +65,17 @@ DateTime now = rtc.now();
   Serial.print(':');
   Serial.print(future.second(), DEC);
   Serial.println();
-
+  */
   Serial.println();
   delay(3000);
 
 }
 
-
+/*
 void WriteRam(int address,byte data){
   Wire.beginTransmission(0x68);              // Select DS1307
   Wire.send(address+8);                       // address location starts at 8, 0-6 are date, 7 is control
   Wire.send(data);                            // send data
   Wire.endTransmission();
 }
+*/

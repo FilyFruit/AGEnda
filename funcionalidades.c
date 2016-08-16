@@ -7,7 +7,7 @@ void obtener_lista (String *data)
   *{
   *  how to?
   *  tiene que preguntar a la memoria y devolver todos
-  *  los cumpleaños guardados con sus ids 
+  *  los cumpleaños guardados con sus ids
   *  return cumpleaños_con_ids;
   }
   *  else no_hay = 1;
@@ -15,16 +15,16 @@ void obtener_lista (String *data)
   */
 }
 
-void mostrar_cumples()
+void mostrar_cumples() // dfhsdf
 {
   /*
    * esto es más del rtc
    * si la fecha actual coincide con una ingresada
    * return match;
-   */ 
+   */
 }
 
-void guardar (que, donde)
+void guardar (que, donde) //que = nomb
 {
   /*
    * "ok, voy a guardar"

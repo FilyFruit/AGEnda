@@ -15,7 +15,7 @@
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;  // whether the string is complete
 String respuesta = "como te va"; // para el hola_mundo
-boolean buffering = false;            
+boolean buffering = false;
 
 void setup() {
   // initialize serial:
@@ -25,7 +25,7 @@ void setup() {
 }
 
 void loop() {
-  
+
 
 }
 
@@ -39,54 +39,62 @@ void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
     char inChar = (char)Serial.read();
-      
-      if ( inChar == '>') // cerrador de paquete 
-        { 
+
+      if ( inChar == '>') // cerrador de paquete
+        {
           stringComplete = true;
           agenda_parse();
           reset_input_string();
         }
-         
+
       if ( buffering == true ) // paquete valido iniciado
         {
           inputString += inChar;
         }
-        
+
       if ( inChar == '<' ) // inicio de paquete
         {
           reset_input_string();
           buffering = true;
         }
-     
+
     }
   }
 
 void agenda_parse () {
-  
+
   String lista[10];
-    
+  int id;
+
   if (inputString == "lista")
     {
         obtener_lista( &lista );
-        if (no hay = 1)
+        if (no_hay == 1)
         {
-            Serial.println("No hay cumpleaños guardados.")
+            Serial.println("no hay cosos");
+        }
+        else
+        {
+            Serial.println("hay cosos");
         }
   }
-  
+
   if (inputString == "cumples")
   {
     mostrar_cumples();
   }
-  
+
   if (inputString == "guardar")
   {
-    guardar();
+    String nombre_ddmmaa     
+    id = get_id();
+    guardar(nombre_ddmmaa,id);
   }
-  
+
   if (inputString == "borrar")
   {
-    borrar();
+    String id
+    borrar(id);
   }
 }
 
@@ -108,7 +116,7 @@ String getValue(String data, char separator, int index)
 }
 
 
-void reset_input_string() 
+void reset_input_string()
 {
     //borro el buffer y string
     buffering = false;
