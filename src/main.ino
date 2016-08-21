@@ -7,14 +7,14 @@
 
 
 #include <stdio.h>
-#include <wire.h> //comunicador rs232 - arduino
+#include <Wire.h> //comunicador rs232 - arduino
 #include <SoftwareSerial.h>
-#include <funcionalidades.h>
+#include <stdio.h>
 
 // Variables para la gestión de datos vía serial.
-unsigned char   input_buffer[200];
-unsigned char   input_buffer_index  = 0;
-char            buffering           = 0;
+char input_buffer[200];
+char input_buffer_index  = 0;
+char buffering           = 0;
 
 
 void setup() {
@@ -65,12 +65,13 @@ void serialEvent() {
  * @date    20160820
  **/
 void agenda_parse () {
-    String lista[10];
-    int id;
+    char *  lista;
+    int     id;
+    int     no_hay = 1;
 
     if ( strcmp( input_buffer , "guardar"  ) == 0 )
     {
-        obtener_lista( &lista );
+        obtener_lista( lista );
         if (no_hay == 1)
         {
             Serial.println("no hay cosos");
@@ -107,14 +108,14 @@ void agenda_parse () {
             token           = strtok( NULL, search);
             char * ddmmyy   = token;
             
-            id = get_id_for_name( nombre );
-            guardar(nombre, ddmmaa, id);
+            //id = get_id_for_name( nombre );
+            //guardar(nombre, ddmmaa, id);
         }
         else if ( strcmp( token , "borrar"  ) == 0 )
         {
             token       = strtok( NULL, search);
-            id          = atoi( token );
-            borrar(id);
+            id          = token;
+            //borrar(id);
         }
         else 
         {
@@ -129,3 +130,52 @@ void reset_input_buffer() {
     buffering            = 0;
     memset( input_buffer , 0 , sizeof(input_buffer) );
 }
+
+
+
+void obtener_lista ( char *lista )
+{
+  /*
+   * if (hay datos)
+  *{
+  *  how to?
+  *  tiene que preguntar a la memoria y devolver todos
+  *  los cumpleaños guardados con sus ids
+  *  return cumpleaños_con_ids;
+  }
+  *  else no_hay = 1;
+
+  */
+}
+
+void mostrar_cumples() // dfhsdf
+{
+  /*
+   * esto es más del rtc
+   * si la fecha actual coincide con una ingresada
+   * return match;
+   */
+}
+
+void guardar (char * que, int donde) //que = nomb
+{
+  /*
+   * "ok, voy a guardar"
+   * busco id donde lo voy a guardar
+   * pido primero nombre
+   * luego fecha
+   * return ok;
+   */
+}
+
+void borrar( int cual )
+{
+  /*
+   * dame la id a borrar
+   * print si no conoces la id buscá en lista
+   * o tirar la lista obtener_lista();
+   * pasame la id
+   * return ok;
+   */
+}
+
