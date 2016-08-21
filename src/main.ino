@@ -27,30 +27,27 @@ void loop() {
 
 }
 
-/*
-  SerialEvent occurs whenever a new data comes in the
- hardware serial RX.  This routine is run between each
- time loop() runs, so using delay inside loop can delay
- response.  Multiple bytes of data may be available.
- */
+/**
+ * Esta función es un callback de un evento de la librería Serial.
+ **/
 void serialEvent() {
     while (Serial.available()) {
-        // get the new byte:
+        // Obtengo un byte
         char input_char = (char)Serial.read();
 
-        if ( input_char == '>') // cerrador de paquete
+        if ( input_char == '>')     // cerrador de paquete
         {
             agenda_parse();
             reset_input_buffer();
         }
 
-        if ( buffering > 0 ) // paquete valido iniciado
+        if ( buffering > 0 )        // paquete valido ya iniciado
         {
             input_buffer[ input_buffer_index ] = input_char;
             input_buffer_index++;
         }
 
-        if ( input_char == '<' ) // inicio de paquete
+        if ( input_char == '<' )    // inicio de paquete
         {
             reset_input_buffer();
             buffering = 1;
@@ -69,7 +66,7 @@ void agenda_parse () {
     int     id;
     int     no_hay = 1;
 
-    if ( strcmp( input_buffer , "guardar"  ) == 0 )
+    if ( strcmp( input_buffer , "lista"  ) == 0 )
     {
         obtener_lista( lista );
         if (no_hay == 1)
@@ -81,7 +78,7 @@ void agenda_parse () {
             Serial.println("hay cosos");
         }
     } 
-    else if ( strcmp( input_buffer , "guardar"  ) == 0 )
+    else if ( strcmp( input_buffer , "mostrar"  ) == 0 )
     {
         mostrar_cumples();
     } 
