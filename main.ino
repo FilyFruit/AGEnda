@@ -11,16 +11,15 @@
 #include <SoftwareSerial.h>
 #include <funcionalidades.h>
 
-String inputString = "";         // a string to hold incoming data
-boolean stringComplete = false;  // whether the string is complete
-String respuesta = "como te va"; // para el hola_mundo
-boolean buffering = false;
+// Variables para la gestión de datos vía serial.
+unsigned char   input_buffer[200];
+unsigned char   input_buffer_index  = 0;
+char            buffering           = 0;
+
 
 void setup() {
   // initialize serial:
   Serial.begin(9600);
-  // reserve 200 bytes for the inputString:
-  inputString.reserve(300);
 }
 
 void loop() {
@@ -35,75 +34,98 @@ void loop() {
  response.  Multiple bytes of data may be available.
  */
 void serialEvent() {
-  while (Serial.available()) {
-    // get the new byte:
-    char inChar = (char)Serial.read();
+    while (Serial.available()) {
+        // get the new byte:
+        char input_char = (char)Serial.read();
 
-      if ( inChar == '>') // cerrador de paquete
+        if ( input_char == '>') // cerrador de paquete
         {
-          stringComplete = true;
-          agenda_parse();
-          reset_input_string();
+            agenda_parse();
+            reset_input_buffer();
         }
 
-      if ( buffering == true ) // paquete valido iniciado
+        if ( buffering > 0 ) // paquete valido iniciado
         {
-          inputString += inChar;
+            input_buffer[ input_buffer_index ] = input_char;
+            input_buffer_index++;
         }
 
-      if ( inChar == '<' ) // inicio de paquete
+        if ( input_char == '<' ) // inicio de paquete
         {
-          reset_input_string();
-          buffering = true;
+            reset_input_buffer();
+            buffering = 1;
         }
-
     }
-  }
+}
 
+/**
+ * Función que entiende comandos del protocolo AGENDA.
+ * 
+ * @author  Daniel Cantarín
+ * @date    20160820
+ **/
 void agenda_parse () {
-  if (inputString == "lista")
-  {
-     Serial.println("no hay cosos");
-    //mostrar_lista();
-  }
+    String lista[10];
+    int id;
 
-  if (inputString == "cumples")
-  {
-    //mostrar_cumples();
-  }
+    if ( strcmp( input_buffer , "guardar"  ) == 0 )
+    {
+        obtener_lista( &lista );
+        if (no_hay == 1)
+        {
+            Serial.println("no hay cosos");
+        }
+        else
+        {
+            Serial.println("hay cosos");
+        }
+    } 
+    else if ( strcmp( input_buffer , "guardar"  ) == 0 )
+    {
+        mostrar_cumples();
+    } 
+    else 
+    {
+        // Necesito realizar un split.
+        char * id;
+        char * token;
+        char * search = ":";
+        char i        = 0;
+        
 
-  if (inputString == "guardar")
-  {
-    //guardar();
-  }
-
-  if (inputString == "borrar")
-  {
-	//borrar();
-  }
-}
-
-
-String getValue(String data, char separator, int index)
-{
-   int found = 0;
-    int strIndex[] = {
-  0, -1  };
-    int maxIndex = data.length()-1;
-    for(int i=0; i<=maxIndex && found<=index; i++){
-    if(data.charAt(i)==separator || i==maxIndex){
-    found++;
-    strIndex[0] = strIndex[1]+1;
-    strIndex[1] = (i == maxIndex) ? i+1 : i;
+        // Token va a tener la primera acepción de un texto antes del ":".
+        // En adelante, sucesivos llamados devuelve el resto de los parámetros.
+        // Con esto parseo cualquier parámetro.
+        token = strtok( input_buffer, search);
+        
+        // Y ahora trabajo con el token hallado. 
+        // Los tokens subsiguientes serán parámetros de cada comando.
+        if ( strcmp( token , "guardar"  ) == 0 )
+        {
+            token           = strtok( NULL, search);
+            char * nombre   = token;
+            token           = strtok( NULL, search);
+            char * ddmmyy   = token;
+            
+            id = get_id_for_name( nombre );
+            guardar(nombre, ddmmaa, id);
+        }
+        else if ( strcmp( token , "borrar"  ) == 0 )
+        {
+            token       = strtok( NULL, search);
+            id          = atoi( token );
+            borrar(id);
+        }
+        else 
+        {
+            Serial.println("ERROR: UNKNOWN COMMAND.");
+        }
     }
-   }
-    return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-
-void reset_input_string()
-{
-    //borro el buffer y string
-    buffering = false;
-    inputString = "";
+void reset_input_buffer() {
+    //borro el buffer y reinicio el índice.
+    input_buffer_index   = 0;
+    buffering            = 0;
+    memset( input_buffer , 0 , sizeof(input_buffer) );
 }
