@@ -10,21 +10,54 @@
 #include <Wire.h> //comunicador rs232 - arduino
 #include <SoftwareSerial.h>
 #include <stdio.h>
+#include <string.h>
+#include "RTClib.h"
+#include "AT24Cxx.h"
 
 // Variables para la gestión de datos vía serial.
 char input_buffer[200];
 char input_buffer_index  = 0;
 char buffering           = 0;
 
+// Variables para manejar el RTC
+RTC_DS1307  RTC;
+
+// Variables para manejar la memoria
+AT24Cxx     MEM;
 
 void setup() {
-  // initialize serial:
+  // iniciamos el puerto serial:
   Serial.begin(9600);
+  
+  // iniciamos también el módulo RTC.
+  RTC.begin();
+  if (! RTC.isrunning()) {
+    Serial.println("<MSG:El RTC no estaba corriendo.>");
+    // Si el RTC no estaba corriendo, lo ponemos en hora.
+    RTC.adjust(DateTime(__DATE__, __TIME__));
+  }
+  
+  MEM = AT24Cxx();
 }
 
 void loop() {
 
-
+    /*
+    DateTime now = RTC.now(); 
+    Serial.print(now.year(), DEC);
+    Serial.print('/');
+    Serial.print(now.month(), DEC);
+    Serial.print('/');
+    Serial.print(now.day(), DEC);
+    Serial.print(' ');
+    Serial.print(now.hour(), DEC);
+    Serial.print(':');
+    Serial.print(now.minute(), DEC);
+    Serial.print(':');
+    Serial.print(now.second(), DEC);
+    Serial.println(); 
+    delay(1000);
+    */
 }
 
 /**
@@ -63,29 +96,45 @@ void serialEvent() {
  **/
 void agenda_parse () {
     char *  lista;
-    int     id;
-    int     no_hay = 1;
+    char    no_hay = 1;
+    String  result = "";
+    
+    Serial.println("comando:");
+    Serial.println( input_buffer );
 
     if ( strcmp( input_buffer , "lista"  ) == 0 )
     {
         obtener_lista( lista );
         if (no_hay == 1)
         {
-            Serial.println("no hay cosos");
+            Serial.println("<MSG:La lista está vacía.>");
         }
         else
         {
-            Serial.println("hay cosos");
+            result  = "<MSG:";
+            result += (String) sizeof( lista );
+            result += " items en la lista.>";
+            Serial.println( result );
         }
     } 
     else if ( strcmp( input_buffer , "mostrar"  ) == 0 )
     {
         mostrar_cumples();
+    }
+    else if ( strcmp( input_buffer , "check_memoria"  ) == 0 )
+    {
+        if ( MEM.isPresent() ) {
+            Serial.println("<MSG:Memoria presente.>");
+        } 
+        else
+        {
+            Serial.println("<MSG:Memoria NO presente.>");
+        }
     } 
     else 
     {
         // Necesito realizar un split.
-        char * id;
+        char   id;
         char * token;
         char * search = ":";
         char i        = 0;
@@ -100,23 +149,50 @@ void agenda_parse () {
         // Los tokens subsiguientes serán parámetros de cada comando.
         if ( strcmp( token , "guardar"  ) == 0 )
         {
+            
             token           = strtok( NULL, search);
             char * nombre   = token;
             token           = strtok( NULL, search);
             char * ddmmyy   = token;
+            char * data     = ""; 
+            uint8_t * buffer;
+            id              = get_id_for_name( nombre );
             
-            //id = get_id_for_name( nombre );
-            //guardar(nombre, ddmmaa, id);
+            sprintf( data, "%s:%s", ddmmyy, nombre);
+            
+            guardar( (uint8_t *) data, id );
+            
+            RTC.readnvram( buffer, strlen(data), id );
+            
+            if ( buffer == (uint8_t *) data ) 
+            {
+                Serial.println("<MSG:Guardado OK.>");
+            } 
+            else 
+            {
+                Serial.println("<ERROR:No se pudo guardar.>");
+            }
+            
         }
         else if ( strcmp( token , "borrar"  ) == 0 )
         {
             token       = strtok( NULL, search);
-            id          = token;
+            id          = (char) atoi(token);
             //borrar(id);
+        }
+        else if ( strcmp( token , "leer"  ) == 0 )
+        {
+            token         = strtok( NULL, search);
+            char * numero = token;
+            char * buffer;
+            //int res       = MEM.ReadMem( (int) &numero, buffer, 1);
+            uint8_t res   = RTC.readnvram( (uint8_t) atoi(numero) );
+            
+            Serial.println( res );
         }
         else 
         {
-            Serial.println("ERROR: UNKNOWN COMMAND.");
+            Serial.println("<ERROR:Comando no reconocido.>");
         }
     }
 }
@@ -154,7 +230,7 @@ void mostrar_cumples() // dfhsdf
    */
 }
 
-void guardar (char * que, int donde) //que = nomb
+void guardar (uint8_t * que, int id)
 {
   /*
    * "ok, voy a guardar"
@@ -163,6 +239,10 @@ void guardar (char * que, int donde) //que = nomb
    * luego fecha
    * return ok;
    */
+   
+   RTC.writenvram( id, que, strlen( (char *) que ) );
+   delay(50);
+   
 }
 
 void borrar( int cual )
@@ -176,3 +256,74 @@ void borrar( int cual )
    */
 }
 
+char get_id_for_name ( char * name )
+{
+    return 1;
+}
+
+
+
+/*
+ * escribe en la memoria 24c32
+ * recibe la direccion de la memoria
+ * y el byte de dato
+ *
+ */
+void escribeMEM (int direccion, byte data)
+{
+  //transforma direccion en los dos address byte direccion
+  byte BYTE_1 = direccion >> 8;
+  byte BYTE_2 = direccion - (BYTE_1 << 8);
+
+  Wire.beginTransmission(MEMdir);
+  Wire.write(BYTE_1);
+  Wire.write(BYTE_2);
+  Wire.write(data);
+  Wire.endTransmission();
+  delay(10);
+}
+
+
+/*
+ * escribe una pagina en la memoria 24c32
+ * recibe la direccion de la memoria
+ * y el string de  dato
+ *
+ */
+void escribePagMEM (int direccion, String data)
+{
+  for (int i = 0; i < 32; i++)
+    {
+      escribeMEM(direccion,data[i]);
+      direccion++;
+    }
+}
+
+/*
+ * lee la memoria 24c32
+ * recibe la direccion de la memoria
+ * y devuelve el String de la pagina de esa
+ * direccion
+ */
+String leeMEM (int direccion)
+{
+  String paginaDeMemoriaR;
+  paginaDeMemoriaR.reserve(32);
+  paginaDeMemoriaR = "";
+  //byte data;
+  byte BYTE_1 = direccion >> 8;
+  byte BYTE_2 = direccion - (BYTE_1 << 8);
+  Wire.beginTransmission(MEMdir);
+  Wire.write(BYTE_1);
+  Wire.write(BYTE_2);
+  Wire.endTransmission();
+  delay(10);
+  Wire.requestFrom(MEMdir, 32);
+  delay(10);
+  for(byte i=0; i < 32; i++)
+  {
+    paginaDeMemoriaR += (char)Wire.read();
+  }
+  delay(10);
+  return paginaDeMemoriaR;
+}
