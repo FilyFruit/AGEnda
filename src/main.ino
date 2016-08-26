@@ -1,6 +1,6 @@
 /*
 * Microcontroladores II - IFTS14
-* Protocolo RS232 - Arduino v. Hola Mundo - pruebas
+* Protocolo RS232 - Arduino
 * @author Bárbara Menares
 * @date 20160628
  */
@@ -15,7 +15,7 @@
 #include "AT24Cxx.h"
 
 // Variables para la gestión de datos vía serial.
-char input_buffer[200];
+char input_buffer[32];
 char input_buffer_index  = 0;
 char buffering           = 0;
 
@@ -24,6 +24,8 @@ RTC_DS1307  RTC;
 
 // Variables para manejar la memoria
 AT24Cxx     MEM;
+#define     MEMdir 0x50
+byte        filler = '%';
 
 void setup() {
   // iniciamos el puerto serial:
@@ -154,17 +156,20 @@ void agenda_parse () {
             char * nombre   = token;
             token           = strtok( NULL, search);
             char * ddmmyy   = token;
-            char * data     = ""; 
-            uint8_t * buffer;
+            String data     = ""; 
+            String buffer   = "";
             id              = get_id_for_name( nombre );
             
-            sprintf( data, "%s:%s", ddmmyy, nombre);
+            //sprintf( data, "%s:%s", ddmmyy, nombre);
+            data = (String) ddmmyy + ":" + (String) nombre;
             
-            guardar( (uint8_t *) data, id );
+            guardar( data, id );
             
-            RTC.readnvram( buffer, strlen(data), id );
+            // confirmamos que haya sido guardada correctamente.
             
-            if ( buffer == (uint8_t *) data ) 
+            buffer = leer_memoria( id );
+            
+            if ( buffer == data ) 
             {
                 Serial.println("<MSG:Guardado OK.>");
             } 
@@ -230,7 +235,7 @@ void mostrar_cumples() // dfhsdf
    */
 }
 
-void guardar (uint8_t * que, int id)
+void guardar (String que, int id)
 {
   /*
    * "ok, voy a guardar"
@@ -240,7 +245,9 @@ void guardar (uint8_t * que, int id)
    * return ok;
    */
    
-   RTC.writenvram( id, que, strlen( (char *) que ) );
+   //RTC.writenvram( id, que, strlen( (char *) que ) );
+   escribir_pagina_memoria( id, que  );
+   
    delay(50);
    
 }
@@ -258,72 +265,90 @@ void borrar( int cual )
 
 char get_id_for_name ( char * name )
 {
-    return 1;
+    return 0;
 }
 
 
 
-/*
- * escribe en la memoria 24c32
- * recibe la direccion de la memoria
- * y el byte de dato
+/**
+ * Escribe en la memoria 24c32 recibe la direccion de la memoria y el 
+ * byte de dato.
  *
+ * @author granjero
+ * @url https://github.com/granjero
  */
-void escribeMEM (int direccion, byte data)
+void escribir_memoria (int direccion, byte data)
 {
-  //transforma direccion en los dos address byte direccion
-  byte BYTE_1 = direccion >> 8;
-  byte BYTE_2 = direccion - (BYTE_1 << 8);
+    //transforma direccion en los dos address byte direccion
+    byte BYTE_1 = direccion >> 8;
+    byte BYTE_2 = direccion - (BYTE_1 << 8);
 
-  Wire.beginTransmission(MEMdir);
-  Wire.write(BYTE_1);
-  Wire.write(BYTE_2);
-  Wire.write(data);
-  Wire.endTransmission();
-  delay(10);
+    Wire.beginTransmission(MEMdir);
+    Wire.write(BYTE_1);
+    Wire.write(BYTE_2);
+    Wire.write(data);
+    Wire.endTransmission();
+    delay(10);
 }
 
 
-/*
- * escribe una pagina en la memoria 24c32
- * recibe la direccion de la memoria
- * y el string de  dato
- *
+/**
+ * Escribe una pagina en la memoria 24c32 recibe la direccion de la 
+ * memoria y el string de  dato
+ * 
+ * @author granjero
+ * @url https://github.com/granjero
  */
-void escribePagMEM (int direccion, String data)
+void escribir_pagina_memoria (int direccion, String data)
 {
-  for (int i = 0; i < 32; i++)
+    char b;
+    //Serial.println(data.length());
+    for (int i = 0; i < 32; i++)
     {
-      escribeMEM(direccion,data[i]);
-      direccion++;
+        escribir_memoria(direccion,data[i]);
+        direccion++;
+        if ( i > data.length() )
+        {
+            for (b = i; b <= 32; b++)
+            {
+                escribir_memoria(direccion, filler);
+                direccion++;
+            }
+            i = 32;
+        }
     }
 }
 
-/*
- * lee la memoria 24c32
- * recibe la direccion de la memoria
- * y devuelve el String de la pagina de esa
- * direccion
+/**
+ * Lee la memoria 24c32 recibe la direccion de la memoria y devuelve el 
+ * String de la pagina de esa direccion.
+ * 
+ * @author granjero
+ * @url https://github.com/granjero
  */
-String leeMEM (int direccion)
+String leer_memoria (int direccion)
 {
-  String paginaDeMemoriaR;
-  paginaDeMemoriaR.reserve(32);
-  paginaDeMemoriaR = "";
-  //byte data;
-  byte BYTE_1 = direccion >> 8;
-  byte BYTE_2 = direccion - (BYTE_1 << 8);
-  Wire.beginTransmission(MEMdir);
-  Wire.write(BYTE_1);
-  Wire.write(BYTE_2);
-  Wire.endTransmission();
-  delay(10);
-  Wire.requestFrom(MEMdir, 32);
-  delay(10);
-  for(byte i=0; i < 32; i++)
-  {
-    paginaDeMemoriaR += (char)Wire.read();
-  }
-  delay(10);
-  return paginaDeMemoriaR;
+    String paginaDeMemoriaR;
+    paginaDeMemoriaR.reserve(32);
+    paginaDeMemoriaR = "";
+    //byte data;
+    byte BYTE_1 = direccion >> 8;
+    byte BYTE_2 = direccion - (BYTE_1 << 8);
+    Wire.beginTransmission(MEMdir);
+    Wire.write(BYTE_1);
+    Wire.write(BYTE_2);
+    Wire.endTransmission();
+    delay(10);
+    Wire.requestFrom(MEMdir, 32);
+    delay(10);
+    for(byte i=0; i < 32; i++)
+    {
+        paginaDeMemoriaR += (char)Wire.read();
+    }
+    delay(10);
+    
+    char tmp[32];
+    paginaDeMemoriaR.toCharArray( tmp, 32 );
+    char * token  = strtok( tmp, (char * ) filler);
+    return (String) token;
 }
