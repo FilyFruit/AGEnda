@@ -18,6 +18,7 @@
 char input_buffer[32];
 char input_buffer_index  = 0;
 char buffering           = 0;
+char debug_enabled       = 0;
 
 // Variables para manejar el RTC
 RTC_DS1307  RTC;
@@ -35,9 +36,9 @@ void setup() {
     // iniciamos también el módulo RTC.
     RTC.begin();
     if (! RTC.isrunning()) {
-    Serial.println("<MSG:El RTC no estaba corriendo.>");
-    // Si el RTC no estaba corriendo, lo ponemos en hora.
-    RTC.adjust(DateTime(__DATE__, __TIME__));
+        Serial.println("<MSG:El RTC no estaba corriendo.>");
+        // Si el RTC no estaba corriendo, lo ponemos en hora.
+        RTC.adjust(DateTime(__DATE__, __TIME__));
     }
 
     MEM = AT24Cxx();
@@ -101,8 +102,8 @@ void agenda_parse () {
     char *  lista[10];
     char    cuantos = 0;
     
-    Serial.println("comando:");
-    Serial.println( input_buffer );
+    debug( "comando:" );
+    debug( (String) input_buffer );
 
     if ( strcmp( input_buffer , "lista"  ) == 0 )
     {
@@ -126,6 +127,19 @@ void agenda_parse () {
             char * result;
             sprintf(result, "<MSG:%i items en la lista>", cuantos);
             Serial.println( result );
+        }
+    }
+    else if ( strcmp( input_buffer , "debug"  ) == 0 )
+    {
+        if ( debug_enabled == 0 )
+        {
+            debug_enabled = 1;
+            Serial.println("<MSG:debug activado.>");
+        }
+        else
+        {
+            debug_enabled = 0;
+            Serial.println("<MSG:debug desactivado.>");
         }
     }
     else if ( strcmp( input_buffer , "limpiar"  ) == 0 )
@@ -225,7 +239,7 @@ void agenda_parse () {
             String pagina = "";
             
             sprintf(token, "<DEBUG:numero de pagina:%i>",id);
-            Serial.println( token );
+            debug( (String) token );
             pagina  = leer_memoria( id );
             Serial.println( "<ITEM:" + pagina + ">" );
         }
@@ -254,13 +268,36 @@ void reset_input_buffer() {
  * @param   char* lista Un array donde voy a guardar las páginas.
  * 
  **/
-void obtener_lista ( char *lista[] )
+void obtener_lista ( char * lista[] )
 {
     char i;
+    char * tmp;
+    String pagina;
     
+    debug("<DEBUG:obtener_lista().>");
     for ( i = 0; i < tamanio_lista; i++) 
     {
-        leer_memoria(i * 32).toCharArray( lista[i], 32 );
+        debug("<DEBUG:" + (String) i + ".>");
+        pagina = leer_memoria( i );
+        debug("<DEBUG:'" + pagina + "'.>");
+        pagina.toCharArray( tmp, 32 );
+        debug("<DEBUG:lista[" + (String) i + "] = '" + (String) tmp + "'.>");
+        lista[i] = tmp;
+    }
+}
+
+/**
+ * Función que se utiliza para depurar.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160827
+ * @param   String texto Un texto a imprimir.
+ **/
+void debug (String texto)
+{
+    if ( debug_enabled == 1 )
+    {
+        Serial.println( texto );
     }
 }
 
@@ -311,11 +348,11 @@ char get_id_for_name ( char * name )
     char temp[32]   = "";
     char * temp2;
     String temp3;
-    Serial.println("<DEBUG:get_id_for_name(" + (String) name + ").>");
+    debug("<DEBUG:get_id_for_name(" + (String) name + ").>");
     for ( i = 0; i < tamanio_lista; i++)
     {
         leer_memoria( i ).toCharArray( temp, 32 );
-        Serial.println("<DEBUG:" + (String) temp + ".>");
+        debug("<DEBUG:" + (String) temp + ".>");
         temp2 = trimwhitespace( temp );
         temp3 = (String) temp2;
         if ( temp3.length() == 0 ) 
@@ -325,7 +362,7 @@ char get_id_for_name ( char * name )
         }
     }
     
-    Serial.println("<DEBUG:return " + (String) id + ".>");
+    debug("<DEBUG:return " + (String) id + ".>");
     
     return id;
 }
@@ -366,7 +403,7 @@ char *trimwhitespace(char *str)
 void escribir_memoria (int direccion, byte data)
 {
     //transforma direccion en los dos address byte direccion
-    Serial.println("<DEBUG:escribir_memoria(" + (String) direccion + ",'" + (String) data + "').>");
+    debug("<DEBUG:escribir_memoria(" + (String) direccion + ",'" + (String) data + "').>");
     byte BYTE_1 = direccion >> 8;
     byte BYTE_2 = direccion - (BYTE_1 << 8);
 
@@ -388,7 +425,7 @@ void escribir_memoria (int direccion, byte data)
 void escribir_pagina_memoria (int direccion, String data)
 {
     char b;
-    Serial.println("<DEBUG:escribir_pagina_memoria(" + (String) direccion + ",'" + (String) data + "').>");
+    debug("<DEBUG:escribir_pagina_memoria(" + (String) direccion + ",'" + (String) data + "').>");
     for (int i = 0; i < 32; i++)
     {
         escribir_memoria(direccion,data[i]);
