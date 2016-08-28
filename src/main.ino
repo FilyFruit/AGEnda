@@ -25,21 +25,22 @@ RTC_DS1307  RTC;
 // Variables para manejar la memoria
 AT24Cxx     MEM;
 #define     MEMdir 0x50
-byte        filler = '%';
+byte        filler = ' ';
+char tamanio_lista = 10;
 
 void setup() {
-  // iniciamos el puerto serial:
-  Serial.begin(9600);
-  
-  // iniciamos también el módulo RTC.
-  RTC.begin();
-  if (! RTC.isrunning()) {
+    // iniciamos el puerto serial:
+    Serial.begin(9600);
+
+    // iniciamos también el módulo RTC.
+    RTC.begin();
+    if (! RTC.isrunning()) {
     Serial.println("<MSG:El RTC no estaba corriendo.>");
     // Si el RTC no estaba corriendo, lo ponemos en hora.
     RTC.adjust(DateTime(__DATE__, __TIME__));
-  }
-  
-  MEM = AT24Cxx();
+    }
+
+    MEM = AT24Cxx();
 }
 
 void loop() {
@@ -97,28 +98,41 @@ void serialEvent() {
  * @date    20160820
  **/
 void agenda_parse () {
-    char *  lista;
-    char    no_hay = 1;
-    String  result = "";
+    char *  lista[10];
+    char    cuantos = 0;
     
     Serial.println("comando:");
     Serial.println( input_buffer );
 
     if ( strcmp( input_buffer , "lista"  ) == 0 )
     {
+        char * vacio = "                                ";
         obtener_lista( lista );
-        if (no_hay == 1)
+        
+        for (cuantos = 0; cuantos < 10; cuantos++)
+        {
+            if (lista[cuantos] == vacio)
+            {
+                break;
+            }
+        }
+        
+        if (cuantos == 0)
         {
             Serial.println("<MSG:La lista está vacía.>");
         }
         else
         {
-            result  = "<MSG:";
-            result += (String) sizeof( lista );
-            result += " items en la lista.>";
+            char * result;
+            sprintf(result, "<MSG:%i items en la lista>", cuantos);
             Serial.println( result );
         }
-    } 
+    }
+    else if ( strcmp( input_buffer , "limpiar"  ) == 0 )
+    {
+        clear_lista();
+        Serial.println("<MSG:Lista borrada.>");
+    }
     else if ( strcmp( input_buffer , "mostrar"  ) == 0 )
     {
         mostrar_cumples();
@@ -160,6 +174,12 @@ void agenda_parse () {
             String buffer   = "";
             id              = get_id_for_name( nombre );
             
+            if ( id < 0 )
+            {
+                Serial.println("<ERROR:No hay espacio disponible.>");
+                return;
+            }
+            
             //sprintf( data, "%s:%s", ddmmyy, nombre);
             data = (String) ddmmyy + ":" + (String) nombre;
             
@@ -183,17 +203,31 @@ void agenda_parse () {
         {
             token       = strtok( NULL, search);
             id          = (char) atoi(token);
-            //borrar(id);
+            
+            // El parámetro "id" corresponde a "número de página".
+            borrar( id );
+            
+            // Compruebo el borrado.
+            String buffer = leer_memoria( id );
+            if ( buffer == "                                " )
+            {
+                Serial.println("<MSG:Borrado OK.>");
+            }
+            else 
+            {
+                Serial.println("<ERROR:No se pudo borrar.>");
+            }
         }
         else if ( strcmp( token , "leer"  ) == 0 )
         {
             token         = strtok( NULL, search);
-            char * numero = token;
-            char * buffer;
-            //int res       = MEM.ReadMem( (int) &numero, buffer, 1);
-            uint8_t res   = RTC.readnvram( (uint8_t) atoi(numero) );
+            int    id     = (int) (token[0] - '0');
+            String pagina = "";
             
-            Serial.println( res );
+            sprintf(token, "<DEBUG:numero de pagina:%i>",id);
+            Serial.println( token );
+            pagina  = leer_memoria( id );
+            Serial.println( "<ITEM:" + pagina + ">" );
         }
         else 
         {
@@ -210,64 +244,116 @@ void reset_input_buffer() {
 }
 
 
-
-void obtener_lista ( char *lista )
+/**
+ * Devuelvo un array con strings.
+ * Cada string es una página completa de la memoria.
+ * En cada página están los datos de los cumpleaños.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160827
+ * @param   char* lista Un array donde voy a guardar las páginas.
+ * 
+ **/
+void obtener_lista ( char *lista[] )
 {
-  /*
-   * if (hay datos)
-  *{
-  *  how to?
-  *  tiene que preguntar a la memoria y devolver todos
-  *  los cumpleaños guardados con sus ids
-  *  return cumpleaños_con_ids;
-  }
-  *  else no_hay = 1;
-
-  */
+    char i;
+    
+    for ( i = 0; i < tamanio_lista; i++) 
+    {
+        leer_memoria(i * 32).toCharArray( lista[i], 32 );
+    }
 }
 
-void mostrar_cumples() // dfhsdf
+void mostrar_cumples() 
 {
-  /*
-   * esto es más del rtc
-   * si la fecha actual coincide con una ingresada
-   * return match;
-   */
+    
 }
 
 void guardar (String que, int id)
 {
-  /*
-   * "ok, voy a guardar"
-   * busco id donde lo voy a guardar
-   * pido primero nombre
-   * luego fecha
-   * return ok;
-   */
-   
-   //RTC.writenvram( id, que, strlen( (char *) que ) );
-   escribir_pagina_memoria( id, que  );
-   
-   delay(50);
-   
+   escribir_pagina_memoria( id * 32, que  );
+   delay(50); // Leí por ahí que a veces es necesario un pequeño delay.
 }
 
+/**
+ * Borra completamente las páginas de la memoria.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160827
+ **/
+void clear_lista()
+{
+    char i;
+    for (i = 0; i < tamanio_lista; i++)
+    {
+        borrar( i );
+    }
+}
+
+/**
+ * Dado un número de página, la llena de espacios en blanco.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160827
+ * @param   int cual Un número de página, empezando por cero.
+ **/
 void borrar( int cual )
 {
-  /*
-   * dame la id a borrar
-   * print si no conoces la id buscá en lista
-   * o tirar la lista obtener_lista();
-   * pasame la id
-   * return ok;
-   */
+    // Simplemente escribo espacios en blanco en una página.
+    String espacios = "                                ";
+    escribir_pagina_memoria( cual * 32, espacios );
 }
 
 char get_id_for_name ( char * name )
 {
-    return 0;
+    char id         = -1;
+    char i          = 0;
+    char temp[32]   = "";
+    char * temp2;
+    String temp3;
+    Serial.println("<DEBUG:get_id_for_name(" + (String) name + ").>");
+    for ( i = 0; i < tamanio_lista; i++)
+    {
+        leer_memoria( i ).toCharArray( temp, 32 );
+        Serial.println("<DEBUG:" + (String) temp + ".>");
+        temp2 = trimwhitespace( temp );
+        temp3 = (String) temp2;
+        if ( temp3.length() == 0 ) 
+        {
+            id = i;
+            break;
+        }
+    }
+    
+    Serial.println("<DEBUG:return " + (String) id + ".>");
+    
+    return id;
 }
 
+// Note: This function returns a pointer to a substring of the original string.
+// If the given string was allocated dynamically, the caller must not overwrite
+// that pointer with the returned value, since the original pointer must be
+// deallocated using the same allocator with which it was allocated.  The return
+// value must NOT be deallocated using free() etc.
+char *trimwhitespace(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace(*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace(*end)) end--;
+
+  // Write new null terminator
+  *(end+1) = 0;
+
+  return str;
+}
 
 
 /**
@@ -280,6 +366,7 @@ char get_id_for_name ( char * name )
 void escribir_memoria (int direccion, byte data)
 {
     //transforma direccion en los dos address byte direccion
+    Serial.println("<DEBUG:escribir_memoria(" + (String) direccion + ",'" + (String) data + "').>");
     byte BYTE_1 = direccion >> 8;
     byte BYTE_2 = direccion - (BYTE_1 << 8);
 
@@ -291,7 +378,6 @@ void escribir_memoria (int direccion, byte data)
     delay(10);
 }
 
-
 /**
  * Escribe una pagina en la memoria 24c32 recibe la direccion de la 
  * memoria y el string de  dato
@@ -302,14 +388,16 @@ void escribir_memoria (int direccion, byte data)
 void escribir_pagina_memoria (int direccion, String data)
 {
     char b;
-    //Serial.println(data.length());
+    Serial.println("<DEBUG:escribir_pagina_memoria(" + (String) direccion + ",'" + (String) data + "').>");
     for (int i = 0; i < 32; i++)
     {
         escribir_memoria(direccion,data[i]);
         direccion++;
+        // Si llegué a cubrir el tamaño del string, relleno la página
+        // con un valor de filler definido globalmente.
         if ( i > data.length() )
         {
-            for (b = i; b <= 32; b++)
+            for (b = i; b < 32; b++)
             {
                 escribir_memoria(direccion, filler);
                 direccion++;
@@ -328,6 +416,9 @@ void escribir_pagina_memoria (int direccion, String data)
  */
 String leer_memoria (int direccion)
 {
+    
+    direccion = direccion * 32; // asumo un índice, no una dirección.
+    
     String paginaDeMemoriaR;
     paginaDeMemoriaR.reserve(32);
     paginaDeMemoriaR = "";
@@ -349,6 +440,6 @@ String leer_memoria (int direccion)
     
     char tmp[32];
     paginaDeMemoriaR.toCharArray( tmp, 32 );
-    char * token  = strtok( tmp, (char * ) filler);
-    return (String) token;
+    //char * token  = strtok( tmp, (char * ) filler);
+    return (String) tmp;
 }
