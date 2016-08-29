@@ -22,6 +22,9 @@ char debug_enabled       = 0;
 
 // Variables para manejar el RTC
 RTC_DS1307  RTC;
+DateTime prevdate;
+char last_hour;
+char last_year;
 
 // Variables para manejar la memoria
 AT24Cxx     MEM;
@@ -41,27 +44,28 @@ void setup() {
         RTC.adjust(DateTime(__DATE__, __TIME__));
     }
 
-    MEM = AT24Cxx();
+    MEM       = AT24Cxx();
+    last_hour = -1;
 }
 
-void loop() {
-
-    /*
-    DateTime now = RTC.now(); 
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(' ');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println(); 
-    delay(1000);
-    */
+void loop() 
+{
+    prevdate = RTC.now();
+    
+    // Cada cambio de año resetea el array de "cumpleaños revisados".
+    if ( last_year != prevdate.year() ) 
+    {
+        last_year = prevdate.year();
+        reset_checked_cumples();
+    } 
+    
+    // Cada cambio de hora chequea si hay un nuevo cumpleaños.
+    if ( last_hour != prevdate.hour() ) 
+    {
+        last_hour = prevdate.hour();
+        revisar_cumples();
+    } 
+    
 }
 
 /**
@@ -105,7 +109,6 @@ void agenda_parse () {
     // Helpers para varios comandos.
     unsigned long numero;
     char * end;
-    DateTime prevdate = RTC.now();
     
     debug( "comando:" );
     debug( (String) input_buffer );
@@ -604,4 +607,42 @@ String leer_memoria (int direccion)
     paginaDeMemoriaR.toCharArray( tmp, 32 );
     //char * token  = strtok( tmp, (char * ) filler);
     return (String) tmp;
+}
+
+
+/**
+ * Vuelve los cumpleaños a estado "no chequeado".
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160828
+ **/
+void reset_checked_cumples()
+{
+    return;
+}
+
+
+/**
+ * Revisa si hay cumpleaños en la fecha actual.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160828
+ **/
+void revisar_cumples()
+{
+    return;
+}
+
+
+/**
+ * Marca un cumpleaños dado como "ya revisado".
+ * Ese estado sirve para que la agenda no me siga notificando.
+ * 
+ * @author  Daniel Cantarín <canta@canta.com.ar>
+ * @date    20160828
+ * @param   char id Número de item en la lista de cumples.
+ **/
+void check_cumple( char id )
+{
+    return;
 }
