@@ -234,14 +234,68 @@ void agenda_parse () {
         }
         else if ( strcmp( token , "leer"  ) == 0 )
         {
-            token         = strtok( NULL, search);
-            int    id     = (int) (token[0] - '0');
-            String pagina = "";
+            token           = strtok( NULL, search);
+            int    id       = (int) (token[0] - '0');
+            String pagina   = "";
             
             sprintf(token, "<DEBUG:numero de pagina:%i>",id);
             debug( (String) token );
             pagina  = leer_memoria( id );
             Serial.println( "<ITEM:" + pagina + ">" );
+        }
+        else if ( strcmp( token , "set_date"  ) == 0 )
+        {
+            char * end;
+            // Se espera formato YYYYMMDD
+            token                = strtok( NULL, search);
+            unsigned long numero = strtol(token, &end, 10);
+            
+            if (!*end)
+            {
+                sprintf(token, "<DEBUG:numero YYYYMMDD casteado: '%lu'.>",numero);
+                debug( (String) token );
+            }
+            else
+            {
+                Serial.println( "<ERROR:No se pudo convertir el parámetro YYYYMMDD a número.>");
+                return;
+            }
+            
+            
+            uint16_t    ano      = (uint16_t) (numero / 10000);
+            uint8_t     mes      = (uint8_t ) ((numero / 100) % 100);
+            uint8_t     dia      = (uint8_t ) (numero % 100);
+            
+            sprintf(token, "<DEBUG:dia %i, mes %i, año %i.>",dia, mes, ano);
+            debug( (String) token );
+            
+            DateTime prevdate = RTC.now();
+            DateTime newdate  = DateTime(
+                ano,
+                mes,
+                dia,
+                prevdate.hour(),
+                prevdate.minute(),
+                prevdate.second()
+            );
+            
+            RTC.adjust( newdate );
+            delay(50);
+            
+            newdate = RTC.now();
+            
+            sprintf(token, "<DEBUG:Grabado dia %i, mes %i, año %i.>", newdate.day(), newdate.month(), newdate.year());
+            debug( (String) token );
+            
+            if ( newdate.day() == dia && newdate.month() == mes && newdate.year() == ano )
+            {
+                Serial.println( "<MSG:Fecha establecida con éxito.>" );
+            }
+            else
+            {
+                Serial.println( "<ERROR:La fecha guardada no coincidió con la ingresada. Se revertieron los cambios.>");
+                RTC.adjust( prevdate );
+            }
         }
         else 
         {
