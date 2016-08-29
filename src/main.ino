@@ -102,6 +102,11 @@ void agenda_parse () {
     char *  lista[10];
     char    cuantos = 0;
     
+    // Helpers para varios comandos.
+    unsigned long numero;
+    char * end;
+    DateTime prevdate = RTC.now();
+    
     debug( "comando:" );
     debug( (String) input_buffer );
 
@@ -160,6 +165,21 @@ void agenda_parse () {
         {
             Serial.println("<MSG:Memoria NO presente.>");
         }
+    }
+    else if ( strcmp( input_buffer , "get_datetime"  ) == 0 )
+    {
+        sprintf(
+            input_buffer, 
+            "<MSG:%04d%02d%02d%02d%02d%02d>",
+            prevdate.year(),
+            prevdate.month(), 
+            prevdate.day(),
+            prevdate.hour(),
+            prevdate.minute(),
+            prevdate.second()
+        );
+        debug( (String) input_buffer );
+        Serial.println( input_buffer );
     } 
     else 
     {
@@ -245,10 +265,9 @@ void agenda_parse () {
         }
         else if ( strcmp( token , "set_date"  ) == 0 )
         {
-            char * end;
             // Se espera formato YYYYMMDD
-            token                = strtok( NULL, search);
-            unsigned long numero = strtol(token, &end, 10);
+            token  = strtok( NULL, search);
+            numero = strtol(token, &end, 10);
             
             if (!*end)
             {
@@ -269,7 +288,6 @@ void agenda_parse () {
             sprintf(token, "<DEBUG:dia %i, mes %i, año %i.>",dia, mes, ano);
             debug( (String) token );
             
-            DateTime prevdate = RTC.now();
             DateTime newdate  = DateTime(
                 ano,
                 mes,
@@ -296,6 +314,59 @@ void agenda_parse () {
                 Serial.println( "<ERROR:La fecha guardada no coincidió con la ingresada. Se revertieron los cambios.>");
                 RTC.adjust( prevdate );
             }
+        }
+        else if ( strcmp( token , "set_time"  ) == 0 )
+        {
+            // Se espera formato HHmmSS
+            
+            token  = strtok( NULL, search);
+            numero = strtol(token, &end, 10);
+            
+            if (!*end)
+            {
+                sprintf(token, "<DEBUG:numero HHmmSS casteado: '%lu'.>",numero);
+                debug( (String) token );
+            }
+            else
+            {
+                Serial.println( "<ERROR:No se pudo convertir el parámetro HHmmSS a número.>");
+                return;
+            }
+            
+            uint8_t     hor      = (uint8_t) (numero / 10000);
+            uint8_t     min      = (uint8_t) ((numero / 100) % 100);
+            uint8_t     sec      = (uint8_t) (numero % 100);
+            
+            sprintf(token, "<DEBUG:hora %i, minuto %i, segundo %i.>", hor, min, sec);
+            debug( (String) token );
+            
+            DateTime newdate  = DateTime(
+                prevdate.year(),
+                prevdate.month(),
+                prevdate.day(),
+                hor,
+                min,
+                sec
+            );
+            
+            RTC.adjust( newdate );
+            delay(50);
+            
+            newdate = RTC.now();
+            
+            sprintf(token, "<DEBUG:Grabado hora %i, minuto %i, segundo %i.>", newdate.hour(), newdate.minute(), newdate.second());
+            debug( (String) token );
+            
+            if ( newdate.hour() == hor && newdate.minute() == min && newdate.second() == sec )
+            {
+                Serial.println( "<MSG:Hora establecida con éxito.>" );
+            }
+            else
+            {
+                Serial.println( "<ERROR:La hora guardada no coincidió con la ingresada. Se revertieron los cambios.>");
+                RTC.adjust( prevdate );
+            }
+            
         }
         else 
         {
