@@ -29,8 +29,11 @@ char last_year;
 // Variables para manejar la memoria
 AT24Cxx     MEM;
 #define     MEMdir 0x50
+char    *   lista[10];
 byte        filler = ' ';
 char tamanio_lista = 10;
+char cumples_hoy[10];
+char chequeados[10];
 
 void setup() {
     // iniciamos el puerto serial:
@@ -39,7 +42,7 @@ void setup() {
     // iniciamos también el módulo RTC.
     RTC.begin();
     if (! RTC.isrunning()) {
-        Serial.println("<MSG:El RTC no estaba corriendo.>");
+        Serial.println( F( "<MSG:El RTC no estaba corriendo.>" ) );
         // Si el RTC no estaba corriendo, lo ponemos en hora.
         RTC.adjust(DateTime(__DATE__, __TIME__));
     }
@@ -63,8 +66,9 @@ void loop()
     if ( last_hour != prevdate.hour() ) 
     {
         last_hour = prevdate.hour();
-        revisar_cumples();
-    } 
+        revisar_cumples( cumples_hoy );
+    }
+    
     
 }
 
@@ -103,7 +107,6 @@ void serialEvent() {
  * @date    20160820
  **/
 void agenda_parse () {
-    char *  lista[10];
     char    cuantos = 0;
     
     // Helpers para varios comandos.
@@ -116,25 +119,33 @@ void agenda_parse () {
     if ( strcmp( input_buffer , "lista"  ) == 0 )
     {
         char * vacio = "                                ";
+        char * result;
+        char   i     = 0;
+        char * tmp;
         obtener_lista( lista );
         
-        for (cuantos = 0; cuantos < 10; cuantos++)
+        for (cuantos = 0; cuantos < tamanio_lista; cuantos++)
         {
             if (lista[cuantos] == vacio)
             {
                 break;
+            } 
+            else
+            {
+                for ( i = 0; i < tamanio_lista; i ++ )
+                { 
+                    //leer_memoria( i ).toCharArray( tmp, 32);
+                    //sprintf(result, "<ITEM:%s>", tmp );
+                    //Serial.println( result );
+                    Serial.println( F("OLA K ASE") );
+                }
             }
+            
         }
         
         if (cuantos == 0)
         {
             Serial.println("<MSG:La lista está vacía.>");
-        }
-        else
-        {
-            char * result;
-            sprintf(result, "<MSG:%i items en la lista>", cuantos);
-            Serial.println( result );
         }
     }
     else if ( strcmp( input_buffer , "debug"  ) == 0 )
@@ -248,11 +259,11 @@ void agenda_parse () {
             String buffer = leer_memoria( id );
             if ( buffer == "                                " )
             {
-                Serial.println("<MSG:Borrado OK.>");
+                Serial.println( F( "<MSG:Borrado OK.>" ) );
             }
             else 
             {
-                Serial.println("<ERROR:No se pudo borrar.>");
+                Serial.println( F( "<ERROR:No se pudo borrar.>" ) );
             }
         }
         else if ( strcmp( token , "leer"  ) == 0 )
@@ -279,7 +290,7 @@ void agenda_parse () {
             }
             else
             {
-                Serial.println( "<ERROR:No se pudo convertir el parámetro YYYYMMDD a número.>");
+                Serial.println( F( "<ERROR:No se pudo convertir el parámetro YYYYMMDD a número.>" ) );
                 return;
             }
             
@@ -310,11 +321,11 @@ void agenda_parse () {
             
             if ( newdate.day() == dia && newdate.month() == mes && newdate.year() == ano )
             {
-                Serial.println( "<MSG:Fecha establecida con éxito.>" );
+                Serial.println( F( "<MSG:Fecha establecida con éxito.>") );
             }
             else
             {
-                Serial.println( "<ERROR:La fecha guardada no coincidió con la ingresada. Se revertieron los cambios.>");
+                Serial.println( F( "<ERROR:La fecha guardada no coincidió con la ingresada. Se revertieron los cambios.>" ) );
                 RTC.adjust( prevdate );
             }
         }
@@ -332,7 +343,7 @@ void agenda_parse () {
             }
             else
             {
-                Serial.println( "<ERROR:No se pudo convertir el parámetro HHmmSS a número.>");
+                Serial.println( F( "<ERROR:No se pudo convertir el parámetro HHmmSS a número.>" ) );
                 return;
             }
             
@@ -357,23 +368,23 @@ void agenda_parse () {
             
             newdate = RTC.now();
             
-            sprintf(token, "<DEBUG:Grabado hora %i, minuto %i, segundo %i.>", newdate.hour(), newdate.minute(), newdate.second());
+            sprintf(token, "<DEBUG:Grabado hora %i, minuto %i, segundo %i.>" , newdate.hour(), newdate.minute(), newdate.second());
             debug( (String) token );
             
             if ( newdate.hour() == hor && newdate.minute() == min && newdate.second() == sec )
             {
-                Serial.println( "<MSG:Hora establecida con éxito.>" );
+                Serial.println( F( "<MSG:Hora establecida con éxito.>" ) );
             }
             else
             {
-                Serial.println( "<ERROR:La hora guardada no coincidió con la ingresada. Se revertieron los cambios.>");
+                Serial.println( F( "<ERROR:La hora guardada no coincidió con la ingresada. Se revertieron los cambios.>" ) );
                 RTC.adjust( prevdate );
             }
             
         }
         else 
         {
-            Serial.println("<ERROR:Comando no reconocido.>");
+            Serial.println( F( "<ERROR:Comando no reconocido.>") );
         }
     }
 }
@@ -553,7 +564,7 @@ void escribir_memoria (int direccion, byte data)
 void escribir_pagina_memoria (int direccion, String data)
 {
     char b;
-    debug("<DEBUG:escribir_pagina_memoria(" + (String) direccion + ",'" + (String) data + "').>");
+    debug( "<DEBUG:escribir_pagina_memoria("  + (String) direccion + ",'" + (String) data + "').>");
     for (int i = 0; i < 32; i++)
     {
         escribir_memoria(direccion,data[i]);
@@ -628,8 +639,42 @@ void reset_checked_cumples()
  * @author  Daniel Cantarín <canta@canta.com.ar>
  * @date    20160828
  **/
-void revisar_cumples()
+void revisar_cumples( char * cumples_hoy )
 {
+    char    i;
+    String  tmp;
+    char * tmp2;
+    char * token;
+    uint8_t dia;
+    uint8_t mes;
+    
+    for ( i = 0; i < tamanio_lista; i++ )
+    {
+        cumples_hoy[i] = 0;
+    }
+    
+    //obtener_lista( lista );
+    for ( i = 0; i < tamanio_lista; i++ )
+    {
+        tmp   = leer_memoria(i);
+        tmp.toCharArray( tmp2, 32);
+        token = strtok( tmp2, ":");
+        
+        mes = prevdate.month();
+        dia = prevdate.day();
+        
+        debug( "<DEBUG: pagina de memoria: " + tmp + ">" );
+        
+        sprintf( tmp2, "%i%i", mes, dia );
+        /*
+        if ( tmp2 == token ) 
+        {
+            debug( "<DEBUG: cumple detectado: " + (String) tmp2 + ">" );
+            cumples_hoy[i] = 1;
+        }
+        */
+    }
+    
     return;
 }
 
