@@ -29,7 +29,6 @@ char last_year;
 // Variables para manejar la memoria
 AT24Cxx     MEM;
 #define     MEMdir 0x50
-char    *   lista[10];
 byte        filler = ' ';
 char tamanio_lista = 10;
 char cumples_hoy[10];
@@ -53,6 +52,7 @@ void setup() {
 
 void loop() 
 {
+    /*
     prevdate = RTC.now();
     
     // Cada cambio de año resetea el array de "cumpleaños revisados".
@@ -61,14 +61,19 @@ void loop()
         last_year = prevdate.year();
         reset_checked_cumples();
     } 
-    
+    /*
     // Cada cambio de hora chequea si hay un nuevo cumpleaños.
     if ( last_hour != prevdate.hour() ) 
     {
         last_hour = prevdate.hour();
-        revisar_cumples( cumples_hoy );
+        char hay  = revisar_cumples();
+         
+        if ( hay > 0 )
+        {
+            debug( "Hay cumples hoy." );
+        }
     }
-    
+    */
     
 }
 
@@ -122,6 +127,7 @@ void agenda_parse () {
         char * result;
         char   i     = 0;
         char * tmp;
+        /*
         obtener_lista( lista );
         
         for (cuantos = 0; cuantos < tamanio_lista; cuantos++)
@@ -147,6 +153,7 @@ void agenda_parse () {
         {
             Serial.println("<MSG:La lista está vacía.>");
         }
+        */
     }
     else if ( strcmp( input_buffer , "debug"  ) == 0 )
     {
@@ -638,8 +645,10 @@ void reset_checked_cumples()
  * 
  * @author  Daniel Cantarín <canta@canta.com.ar>
  * @date    20160828
+ * 
+ * @return  char Cero cuando no hay cumpleaños, no-cero cuando hay.
  **/
-void revisar_cumples( char * cumples_hoy )
+char revisar_cumples( )
 {
     char    i;
     String  tmp;
@@ -647,13 +656,15 @@ void revisar_cumples( char * cumples_hoy )
     char * token;
     uint8_t dia;
     uint8_t mes;
-    
+    char hay = 0;
+
     for ( i = 0; i < tamanio_lista; i++ )
     {
         cumples_hoy[i] = 0;
     }
     
     //obtener_lista( lista );
+    /*
     for ( i = 0; i < tamanio_lista; i++ )
     {
         tmp   = leer_memoria(i);
@@ -666,16 +677,17 @@ void revisar_cumples( char * cumples_hoy )
         debug( "<DEBUG: pagina de memoria: " + tmp + ">" );
         
         sprintf( tmp2, "%i%i", mes, dia );
-        /*
+        
         if ( tmp2 == token ) 
         {
             debug( "<DEBUG: cumple detectado: " + (String) tmp2 + ">" );
             cumples_hoy[i] = 1;
+            hay++;
         }
-        */
+        
     }
-    
-    return;
+    */
+    return hay;
 }
 
 
