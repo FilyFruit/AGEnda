@@ -52,7 +52,7 @@ void setup() {
 
 void loop() 
 {
-    /*
+    
     prevdate = RTC.now();
     
     // Cada cambio de año resetea el array de "cumpleaños revisados".
@@ -61,7 +61,7 @@ void loop()
         last_year = prevdate.year();
         reset_checked_cumples();
     } 
-    /*
+    
     // Cada cambio de hora chequea si hay un nuevo cumpleaños.
     if ( last_hour != prevdate.hour() ) 
     {
@@ -73,7 +73,7 @@ void loop()
             debug( "Hay cumples hoy." );
         }
     }
-    */
+    
     
 }
 
@@ -167,6 +167,10 @@ void agenda_parse () {
             debug_enabled = 0;
             Serial.println("<MSG:debug desactivado.>");
         }
+    }
+    else if ( strcmp( input_buffer , "check_cumples"  ) == 0 )
+    {
+        revisar_cumples();
     }
     else if ( strcmp( input_buffer , "limpiar"  ) == 0 )
     {
@@ -652,7 +656,7 @@ char revisar_cumples( )
 {
     char    i;
     String  tmp;
-    char * tmp2;
+    char tmp2[32];
     char * token;
     uint8_t dia;
     uint8_t mes;
@@ -664,9 +668,10 @@ char revisar_cumples( )
     }
     
     //obtener_lista( lista );
-    /*
+    
     for ( i = 0; i < tamanio_lista; i++ )
     {
+        
         tmp   = leer_memoria(i);
         tmp.toCharArray( tmp2, 32);
         token = strtok( tmp2, ":");
@@ -676,17 +681,20 @@ char revisar_cumples( )
         
         debug( "<DEBUG: pagina de memoria: " + tmp + ">" );
         
-        sprintf( tmp2, "%i%i", mes, dia );
+        sprintf( tmp2, "%d%d", mes, dia );
+        
+        debug( "<DEBUG: deteccion de fecha: " + String(tmp2) + ">" );
+        debug( "<DEBUG: token: " + String(token) + ">" );
         
         if ( tmp2 == token ) 
         {
-            debug( "<DEBUG: cumple detectado: " + (String) tmp2 + ">" );
+            debug( "<DEBUG: cumple detectado.>" );
             cumples_hoy[i] = 1;
             hay++;
         }
         
     }
-    */
+    
     return hay;
 }
 
