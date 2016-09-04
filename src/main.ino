@@ -655,8 +655,8 @@ void reset_checked_cumples()
 char revisar_cumples( )
 {
     char    i;
-    String  tmp;
     char tmp2[32];
+    char fecha[5]; // Dos dígitos para el mes, dos para el día, y uno para el null.
     char * token;
     uint8_t dia;
     uint8_t mes;
@@ -672,21 +672,20 @@ char revisar_cumples( )
     for ( i = 0; i < tamanio_lista; i++ )
     {
         
-        tmp   = leer_memoria(i);
-        tmp.toCharArray( tmp2, 32);
+        leer_memoria(i).toCharArray( tmp2, 32);
         token = strtok( tmp2, ":");
         
         mes = prevdate.month();
         dia = prevdate.day();
         
-        debug( "<DEBUG: pagina de memoria: " + tmp + ">" );
+        debug( "<DEBUG: pagina de memoria: " + String(tmp2) + ">" );
         
-        sprintf( tmp2, "%d%d", mes, dia );
+        sprintf( fecha, "%02d%02d", mes, dia );
         
-        debug( "<DEBUG: deteccion de fecha: " + String(tmp2) + ">" );
+        debug( "<DEBUG: fecha: " + String(fecha) + ">" );
         debug( "<DEBUG: token: " + String(token) + ">" );
         
-        if ( tmp2 == token ) 
+        if ( strcmp( token , fecha  ) == 0 ) 
         {
             debug( "<DEBUG: cumple detectado.>" );
             cumples_hoy[i] = 1;
@@ -694,7 +693,7 @@ char revisar_cumples( )
         }
         
     }
-    
+
     return hay;
 }
 
