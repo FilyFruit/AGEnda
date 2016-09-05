@@ -24,15 +24,21 @@ char debug_enabled       = 0;
 RTC_DS1307  RTC;
 DateTime prevdate;
 char last_hour;
-char last_year;
+int  last_year;
+char last_sec;
+char last_day;
 
 // Variables para manejar la memoria
 AT24Cxx     MEM;
 #define     MEMdir 0x50
-byte        filler = ' ';
-char tamanio_lista = 10;
-char cumples_hoy[10];
-char chequeados[10];
+byte        filler      = ' ';
+char tamanio_lista      = 10;
+char hay                = 0;
+char cumples_hoy[10]    = {0};
+char chequeados[10]     = {0};
+
+// Otras variables para el resto del sistema
+char estado_led    = LOW;
 
 void setup() {
     // iniciamos el puerto serial:
@@ -48,6 +54,12 @@ void setup() {
 
     MEM       = AT24Cxx();
     last_hour = -1;
+    last_day  = -1;
+    last_year = -1;
+    
+    // Establecemos el pin 13 (led) como output.
+    pinMode( 13 , OUTPUT);
+    
 }
 
 void loop() 
@@ -58,6 +70,7 @@ void loop()
     // Cada cambio de año resetea el array de "cumpleaños revisados".
     if ( last_year != prevdate.year() ) 
     {
+        //debug("<DEBUG: cambio de año.>");
         last_year = prevdate.year();
         reset_checked_cumples();
     } 
@@ -65,16 +78,34 @@ void loop()
     // Cada cambio de hora chequea si hay un nuevo cumpleaños.
     if ( last_hour != prevdate.hour() ) 
     {
+        //debug("<DEBUG: cambio de hora.>");
         last_hour = prevdate.hour();
-        char hay  = revisar_cumples();
-         
-        if ( hay > 0 )
-        {
-            debug( "Hay cumples hoy." );
-        }
+        revisar_cumples();
     }
     
+    // Cada cambio de día limpia la lista de cumpleaños ya revisados.
+    if ( last_day  != prevdate.day() ) 
+    {
+        //debug("<DEBUG: cambio de día.>");
+        last_day = prevdate.day();
+        reset_checked_cumples();
+    }
     
+    if ( hay > 0 && unchecked() > 0 )
+    {
+        if ( last_sec != prevdate.second() ) {
+            // Cambiamos el estado del led cada segundo.
+            //debug( "<DEBUG: Hay cumples hoy. Cambio led.>" );
+            if (estado_led == LOW) {
+                estado_led = HIGH;
+            } else {
+                estado_led = LOW;
+            }
+
+            digitalWrite( 13 , estado_led );
+            last_sec = prevdate.second();
+        }
+    }
 }
 
 /**
@@ -121,41 +152,7 @@ void agenda_parse () {
     debug( "comando:" );
     debug( (String) input_buffer );
 
-    if ( strcmp( input_buffer , "lista"  ) == 0 )
-    {
-        char * vacio = "                                ";
-        char * result;
-        char   i     = 0;
-        char * tmp;
-        /*
-        obtener_lista( lista );
-        
-        for (cuantos = 0; cuantos < tamanio_lista; cuantos++)
-        {
-            if (lista[cuantos] == vacio)
-            {
-                break;
-            } 
-            else
-            {
-                for ( i = 0; i < tamanio_lista; i ++ )
-                { 
-                    //leer_memoria( i ).toCharArray( tmp, 32);
-                    //sprintf(result, "<ITEM:%s>", tmp );
-                    //Serial.println( result );
-                    Serial.println( F("OLA K ASE") );
-                }
-            }
-            
-        }
-        
-        if (cuantos == 0)
-        {
-            Serial.println("<MSG:La lista está vacía.>");
-        }
-        */
-    }
-    else if ( strcmp( input_buffer , "debug"  ) == 0 )
+    if ( strcmp( input_buffer , "debug"  ) == 0 )
     {
         if ( debug_enabled == 0 )
         {
@@ -168,9 +165,21 @@ void agenda_parse () {
             Serial.println("<MSG:debug desactivado.>");
         }
     }
-    else if ( strcmp( input_buffer , "check_cumples"  ) == 0 )
+    else if ( strcmp( input_buffer , "revisar_cumples"  ) == 0 )
     {
         revisar_cumples();
+    }
+    else if ( strcmp( input_buffer , "reset_chequeados"  ) == 0 )
+    {
+        reset_checked_cumples();
+    }
+    else if ( strcmp( input_buffer , "show_cumples"  ) == 0 )
+    {
+        mostrar_cumples();
+    }
+    else if ( strcmp( input_buffer , "check_all"  ) == 0 )
+    {
+        check_all_cumples();
     }
     else if ( strcmp( input_buffer , "limpiar"  ) == 0 )
     {
@@ -288,6 +297,13 @@ void agenda_parse () {
             pagina  = leer_memoria( id );
             Serial.println( "<ITEM:" + pagina + ">" );
         }
+        else if ( strcmp( token , "check"  ) == 0 )
+        {
+            // Marca un cumpleaños como "ya revisado".
+            token           = strtok( NULL, search);
+            char   id       = (char) (token[0] - '0');
+            check_cumple( id );
+        }
         else if ( strcmp( token , "set_date"  ) == 0 )
         {
             // Se espera formato YYYYMMDD
@@ -333,6 +349,7 @@ void agenda_parse () {
             if ( newdate.day() == dia && newdate.month() == mes && newdate.year() == ano )
             {
                 Serial.println( F( "<MSG:Fecha establecida con éxito.>") );
+                revisar_cumples();
             }
             else
             {
@@ -453,7 +470,21 @@ void debug (String texto)
 
 void mostrar_cumples() 
 {
+    char i;
+    char * token;
+    char tmp[32];
     
+    for (i = 0; i < tamanio_lista; i ++ )
+    {
+        if (cumples_hoy[i] != 0)
+        {
+            leer_memoria(i).toCharArray( tmp, 32 );
+            token = strtok( tmp , ":");
+            token = strtok( NULL, ":");
+            
+            Serial.println("<MSG: Hoy cumple años " + String(token) + ">");
+        }
+    }
 }
 
 void guardar (String que, int id)
@@ -640,7 +671,13 @@ String leer_memoria (int direccion)
  **/
 void reset_checked_cumples()
 {
-    return;
+    debug("<DEBUG: borrando array de cumples revisados.>");
+    char i;
+    for ( i = 0; i < tamanio_lista; i++)
+    {
+        chequeados[i] = 0;
+    }
+    
 }
 
 
@@ -649,10 +686,8 @@ void reset_checked_cumples()
  * 
  * @author  Daniel Cantarín <canta@canta.com.ar>
  * @date    20160828
- * 
- * @return  char Cero cuando no hay cumpleaños, no-cero cuando hay.
  **/
-char revisar_cumples( )
+void revisar_cumples( )
 {
     char    i;
     char tmp2[32];
@@ -660,13 +695,13 @@ char revisar_cumples( )
     char * token;
     uint8_t dia;
     uint8_t mes;
-    char hay = 0;
 
     for ( i = 0; i < tamanio_lista; i++ )
     {
         cumples_hoy[i] = 0;
     }
     
+    hay = 0;
     //obtener_lista( lista );
     
     for ( i = 0; i < tamanio_lista; i++ )
@@ -678,7 +713,7 @@ char revisar_cumples( )
         mes = prevdate.month();
         dia = prevdate.day();
         
-        debug( "<DEBUG: pagina de memoria: " + String(tmp2) + ">" );
+        //debug( "<DEBUG: pagina de memoria: " + String(tmp2) + ">" );
         
         sprintf( fecha, "%02d%02d", mes, dia );
         
@@ -694,7 +729,6 @@ char revisar_cumples( )
         
     }
 
-    return hay;
 }
 
 
@@ -708,5 +742,32 @@ char revisar_cumples( )
  **/
 void check_cumple( char id )
 {
-    return;
+    //debug("<DEBUG: chequeando " + String(id) + ".>" );
+    chequeados[id] = 1;
+}
+
+
+void check_all_cumples( )
+{
+    char i;
+    for (i=0; i < tamanio_lista; i++)
+    {
+        check_cumple(i);
+    }
+}
+
+char unchecked() 
+{
+    char i;
+    char hay_no_chequeados = 0;
+    for ( i = 0; i < tamanio_lista; i++ )
+    {
+        if ( chequeados[i] == 0 && cumples_hoy[i] != 0 )
+        {
+            //debug("<DEBUG: item #" + String(i) + ", cumples_hoy[item]: " + String(cumples_hoy[i]) + ", chequeados[item]: " + String(chequeados[i]) + ".>");
+            hay_no_chequeados = 1;
+            break;
+        }
+    }
+    return hay_no_chequeados;
 }
